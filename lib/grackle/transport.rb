@@ -97,7 +97,7 @@ module Grackle
         if file_param?(options[:params])
           add_multipart_data(req,options[:params])
         else
-          add_form_data(req,options[:params])
+          add_form_data_or_body_params(req,options[:params])
         end
         if options.has_key? :auth
           if options[:auth][:type] == :basic
@@ -165,8 +165,17 @@ module Grackle
         end        
       end
     
-      def add_form_data(req,params)
-        if request_body_permitted?(req) && params
+      # There was an issue when setting Content-Type to 'application/json': The header
+      # was being overwritten to 'x-www-form-urlencoded' because it is the default for
+      # req.set_form_data.  Adding the option to set the params in the body leaves
+      # the Content-Type header as application/json.
+      def add_form_data_or_body_params(req,params)
+        if !(request_body_permitted?(req) && params)
+          return
+        end
+        if req["Content-Type"] && req["Content-Type"] == "application/json"
+          req.body = params.to_json
+        else
           req.set_form_data(params)
         end
       end
